@@ -174,17 +174,18 @@ func init() {
 	sql.Register("oci8", Driver)
 
 	// set defaultCharset to AL32UTF8
-	var envP *C.OCIEnv
-	envPP := &envP
-	var result C.sword
-	result = C.OCIEnvCreate(envPP, C.OCI_DEFAULT, nil, nil, nil, nil, 0, nil)
-	if result != C.OCI_SUCCESS {
-		panic("OCIEnvCreate error")
-	}
-	nlsLang := cString("AL32UTF8")
-	defaultCharset = C.OCINlsCharSetNameToId(unsafe.Pointer(*envPP), (*C.oratext)(nlsLang))
-	C.free(unsafe.Pointer(nlsLang))
-	C.OCIHandleFree(unsafe.Pointer(*envPP), C.OCI_HTYPE_ENV)
+	// var envP *C.OCIEnv
+	// envPP := &envP
+	// var result C.sword
+	// result = C.OCIEnvCreate(envPP, C.OCI_DEFAULT, nil, nil, nil, nil, 0, nil)
+	// if result != C.OCI_SUCCESS {
+	// 	panic("OCIEnvCreate error")
+	// }
+	// nlsLang := cString("AL32UTF8")
+	// defaultCharset = C.OCINlsCharSetNameToId(unsafe.Pointer(*envPP), (*C.oratext)(nlsLang))
+	// C.free(unsafe.Pointer(nlsLang))
+	// C.OCIHandleFree(unsafe.Pointer(*envPP), C.OCI_HTYPE_ENV)
+	defaultCharset = getCharsetID("AL32UTF8")
 
 	// build timeLocations: GMT -12 to 14
 	timeLocationNames := []string{"Etc/GMT+12", "Pacific/Pago_Pago", // -12 to -11
@@ -209,6 +210,21 @@ func init() {
 			timeLocations[i] = time.FixedZone(name, 3600*(i-12))
 		}
 	}
+}
+
+func getCharsetID(lang string) C.ub2 {
+	var envP *C.OCIEnv
+	envPP := &envP
+	var result C.sword
+	result = C.OCIEnvCreate(envPP, C.OCI_DEFAULT, nil, nil, nil, nil, 0, nil)
+	if result != C.OCI_SUCCESS {
+		panic("OCIEnvCreate error")
+	}
+	nlsLang := cString(lang)
+	langId := C.OCINlsCharSetNameToId(unsafe.Pointer(*envPP), (*C.oratext)(nlsLang))
+	C.free(unsafe.Pointer(nlsLang))
+	C.OCIHandleFree(unsafe.Pointer(*envPP), C.OCI_HTYPE_ENV)
+	return langId
 }
 
 /*
