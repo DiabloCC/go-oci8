@@ -180,9 +180,23 @@ func (drv *DriverStruct) Open(dsnString string) (driver.Conn, error) {
 	envPP := &envP
 	var result C.sword
 	charset := C.ub2(0)
+	ncharset := C.ub2(0)
 
-	if os.Getenv("NLS_LANG") == "" && os.Getenv("NLS_NCHAR") == "" {
+	// if os.Getenv("NLS_LANG") == "" && os.Getenv("NLS_NCHAR") == "" {
+	// 	charset = defaultCharset
+	// }
+
+	//get environment settings and set client charset
+	if os.Getenv("NLS_LANG") == "" {
 		charset = defaultCharset
+	} else {
+		charset = getNlsCharset(strings.ToUpper(os.Getenv("NLS_LANG")))
+	}
+
+	if os.Getenv("NLS_NCHAR") == "" {
+		ncharset = defaultCharset
+	} else {
+		ncharset = getNlsCharset(strings.ToUpper(os.Getenv("NLS_NCHAR")))
 	}
 
 	result = C.OCIEnvNlsCreate(
@@ -195,11 +209,12 @@ func (drv *DriverStruct) Open(dsnString string) (driver.Conn, error) {
 		0,              // Specifies the amount of user memory to be allocated for the duration of the environment.
 		nil,            // Returns a pointer to the user memory of size xtramemsz allocated by the call for the user.
 		charset,        // The client-side character set for the current environment handle. If it is 0, the NLS_LANG setting is used.
-		charset,        // The client-side national character set for the current environment handle. If it is 0, NLS_NCHAR setting is used.
+		ncharset,       // The client-side national character set for the current environment handle. If it is 0, NLS_NCHAR setting is used.
 	)
 	if result != C.OCI_SUCCESS {
 		return nil, errors.New("OCIEnvNlsCreate error")
 	}
+
 	conn.env = *envPP
 
 	// defer on error handle free
@@ -463,4 +478,19 @@ func timezoneToLocation(hour int64, minute int64) *time.Location {
 
 	// use location from timeLocations cache
 	return timeLocations[12+hour]
+}
+
+func getNlsCharset(nlsEnvString string) C.ub2 {
+
+	pos := strings.Index(nlsEnvString, ".")
+
+	var charsetString string
+	if pos >= 0 {
+		charsetString = string(nlsEnvString[pos+1:])
+	} else {
+		charsetString = nlsEnvString
+	}
+
+	return getCharsetID(charsetString)
+
 }
